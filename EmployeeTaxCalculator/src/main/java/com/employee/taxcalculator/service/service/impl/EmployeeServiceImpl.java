@@ -11,35 +11,53 @@ import org.springframework.stereotype.Service;
 
 import com.employee.taxcalculator.service.common.AppConstants;
 import com.employee.taxcalculator.service.dao.EmployeeDao;
+import com.employee.taxcalculator.service.model.DataAndError;
 import com.employee.taxcalculator.service.model.Employee;
+import com.employee.taxcalculator.service.model.ErrorMessage;
 import com.employee.taxcalculator.service.model.TaxInformation;
 import com.employee.taxcalculator.service.service.EmployeeService;
 
 @Service
-public class EmployeeServiceImpl implements EmployeeService{
-	
+public class EmployeeServiceImpl implements EmployeeService {
+
 	private final Logger logger = LoggerFactory.getLogger(EmployeeServiceImpl.class);
-	
+
 	@Autowired
 	EmployeeDao employeeDao;
 
 	@Override
-	public String saveEmployee(Employee employee) {
+	public DataAndError<String> saveEmployee(Employee employee) {
 		logger.info("In EmployeeServiceImpl ::  saveEmployee" + employee);
-		Employee response = employeeDao.save(employee);
-		if(response != null ) {
-			return AppConstants.EMPLOYEE_SAVED_SUCCESSFULLY;
-		}else 
-			return AppConstants.EMPLOYEE_SAVE_FAILURE;
+		DataAndError<String> response = new DataAndError<String>();
+		ErrorMessage errors = new ErrorMessage();
+		try {
+			Employee data = employeeDao.save(employee);
+			if (data != null) {
+				response.setData(AppConstants.EMPLOYEE_SAVED_SUCCESSFULLY);
+			} else {
+				errors.setMessage(AppConstants.EMPLOYEE_SAVE_FAILURE);
+				response.setError(errors);
+			}
+		}
+		catch(Exception e) {
+			errors.setMessage(e.getMessage());
+			response.setError(errors);
+		}
+		return response;
 	}
 
 	@Override
 	public TaxInformation getTaxInformationForEmployee(Integer employeeId) {
 		logger.info("In EmployeeServiceImpl ::  getTaxInformationForEmployee" + employeeId);
+		try {
 		Employee employee = employeeDao.findById(employeeId).get();
-		if(employee != null ) {
+		if (employee != null) {
 			TaxInformation taxDetails = calculateTaxDetailsForTheEmployee(employee);
 			return taxDetails;
+			}
+		}
+		catch(Exception e) {
+			logger.info("Employee Not Found");
 		}
 		return null;
 	}
@@ -55,45 +73,43 @@ public class EmployeeServiceImpl implements EmployeeService{
 		taxDetails.setCessAmount(calculateCess(taxDetails.getYearlySalary()));
 		return taxDetails;
 	}
-	
 
 	private BigDecimal calculateYearlySalary(Employee employee) {
-		 logger.info("In EmployeeServiceImpl ::  calculateTaxDetailsForTheEmployee" + employee);
-		 LocalDate financialYearStart = LocalDate.of(employee.getDateOfJoining().getYear(), 4, 1); // April 1st
-	        LocalDate financialYearEnd = LocalDate.of(employee.getDateOfJoining().getYear() + 1, 3, 31); // March 31st next year
-	        
-	        // Calculate the tenure within the financial year
-	        LocalDate startDate = employee.getDateOfJoining().isAfter(financialYearStart) ? employee.getDateOfJoining() : financialYearStart;
-	        LocalDate endDate = LocalDate.now().isBefore(financialYearEnd) ? LocalDate.now() : financialYearEnd;
-	        long monthsWorked = ChronoUnit.MONTHS.between(startDate, endDate) + 1; // Adding 1 as both start and end months are counted
-	        
-	     BigDecimal  totalSalary = BigDecimal.valueOf(employee.getMonthlySalary() * monthsWorked);
-         return totalSalary;
+		logger.info("In EmployeeServiceImpl ::  calculateTaxDetailsForTheEmployee" + employee);
+		LocalDate financialYearStart = LocalDate.of(employee.getDateOfJoining().getYear(), 4, 1); 
+		LocalDate financialYearEnd = LocalDate.of(employee.getDateOfJoining().getYear() + 1, 3, 31);
+		// Calculate the tenure within the financial year
+		LocalDate startDate = employee.getDateOfJoining().isAfter(financialYearStart) ? employee.getDateOfJoining()
+				: financialYearStart;
+		LocalDate endDate = LocalDate.now().isBefore(financialYearEnd) ? LocalDate.now() : financialYearEnd;
+		long monthsWorked = ChronoUnit.MONTHS.between(startDate, endDate) + 1;
+
+		BigDecimal totalSalary = BigDecimal.valueOf(employee.getMonthlySalary() * monthsWorked);
+		return totalSalary;
 	}
-	
+
 	private double calculateTaxAmount(BigDecimal yearlySalary) {
 		logger.info("In EmployeeServiceImpl ::  calculateTaxAmount" + yearlySalary);
 		double salary = yearlySalary.doubleValue();
 		double taxAmount = 0.0;
-	    if (salary > 1000000) {
-	        taxAmount = (salary - 1000000) * 0.2 + 500000 * 0.1 + 250000 * 0.05;
-        } else if (salary > 500000) {
-        	taxAmount = (salary - 500000) * 0.1 + 250000 * 0.05;
-	    } else if (salary > 250000) {
-	        taxAmount = (salary - 250000) * 0.05;
-        }
-	      return taxAmount;
+		if (salary > 1000000) {
+			taxAmount = (salary - 1000000) * 0.2 + 500000 * 0.1 + 250000 * 0.05;
+		} else if (salary > 500000) {
+			taxAmount = (salary - 500000) * 0.1 + 250000 * 0.05;
+		} else if (salary > 250000) {
+			taxAmount = (salary - 250000) * 0.05;
+		}
+		return taxAmount;
 	}
-	
+
 	private double calculateCess(BigDecimal yearlySalary) {
 		double salary = yearlySalary.doubleValue();
 		logger.info("In EmployeeServiceImpl ::  calculateTaxAmount" + yearlySalary);
-        double cessAmount = 0.0;
-        if (salary > 2500000) {
-            cessAmount = (salary - 2500000) * 0.02;
-        }
-        return cessAmount;
-    }
-	
+		double cessAmount = 0.0;
+		if (salary > 2500000) {
+			cessAmount = (salary - 2500000) * 0.02;
+		}
+		return cessAmount;
+	}
 
 }

@@ -10,7 +10,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.employee.taxcalculator.service.common.AppConstants;
+import com.employee.taxcalculator.service.model.DataAndError;
 import com.employee.taxcalculator.service.model.Employee;
+import com.employee.taxcalculator.service.model.ErrorMessage;
 import com.employee.taxcalculator.service.model.TaxInformation;
 import com.employee.taxcalculator.service.service.EmployeeService;
 import jakarta.validation.Valid;
@@ -25,16 +28,24 @@ public class EmployeeController {
 	private EmployeeService employeeService;
 	
 	@PostMapping("save")
-	public String saveEmployee(@Valid @RequestBody Employee employee) {
+	public DataAndError<String> saveEmployee(@Valid @RequestBody Employee employee) {
 		logger.info("In EmployeeController :: saveEmployee"+employee);
-		String response = employeeService.saveEmployee(employee);
+		DataAndError<String> response = employeeService.saveEmployee(employee);
 		return response;
 	}
 	
 	@GetMapping("tax-details/{employeeId}")
-	public TaxInformation getTaxInformationForEmployee(@PathVariable int employeeId) {
+	public DataAndError<TaxInformation> getTaxInformationForEmployee(@PathVariable int employeeId) {
+		DataAndError<TaxInformation> response = new DataAndError<TaxInformation>();
 		logger.info("In EmployeeController :: getTaxInformationForEmployee :"+employeeId);
-		TaxInformation response = employeeService.getTaxInformationForEmployee(employeeId);
+		TaxInformation data = employeeService.getTaxInformationForEmployee(employeeId);
+		if(data != null) {
+			response.setData(data);
+		} else {
+			ErrorMessage error = new ErrorMessage();
+			error.setMessage(AppConstants.USER_NOT_FOUND);
+			response.setError(error);
+		}
 		return response;
 	}
 
